@@ -6,10 +6,30 @@
 ## 🚀 Features
 
 ### 👤 User Management
-- **Signup & Verification**
-  - Register new users with email confirmation.
-- **Authentication**
-  - Login with email/password .
+
+* **Signup & Verification**
+
+  * Register new users with email confirmation.
+* **Authentication**
+
+  * Login with email/password.
+* **User Profile**
+
+  * Get User Profile information.
+* **Email Confirmation**
+
+  * Confirm email address with OTP.
+* **Logout**
+
+  * Log out from current device or all devices.
+* **Token Management**
+
+  * Refresh Token endpoint to get new access & refresh tokens.
+* **Password Management**
+
+  * Forget Password (request password reset).
+  * Reset Password (set a new password).
+
 
 ---
 
@@ -41,7 +61,7 @@ cd socialMediaApp
 
 npm install
 
-### 3. Create a .env file in the root directory with the following variables:
+### 3. Create a .env file inside a folder called "config" in the root directory with the following variables:
 
 PORT=
 DB_URL ="mongodb://127.0.0.1:27017/socialMediaApp"
@@ -54,7 +74,9 @@ REFRESH_TOKEN_USER =
 REFRESH_TOKEN_ADMIN = 
 EMAIL = 
 PASS = 
-
+BEARER_USER =
+BEARER_ADMIN =
+WEB_CLIENT_ID = 
 
 put a value to each one of them
 
