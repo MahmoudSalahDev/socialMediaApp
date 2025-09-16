@@ -9,6 +9,8 @@ import { error } from "console"
 import { AppError } from "./utils/classError"
 import userRouter from "./modules/users/user.controller"
 import { connectionDB } from "./DB/connectionDB"
+import { UserRepository } from "./DB/repositories/user.repository"
+import userModel from "./DB/model/user.model"
 const app: express.Application = express()
 
 const port: string | number = process.env.PORT || 5000
@@ -23,14 +25,14 @@ const limiter = rateLimit({
     legacyHeaders: false
 })
 
-const bootstrap = async() => {
+const bootstrap = async () => {
     app.use(express.json())
     app.use(cors())
     app.use(helmet())
     app.use(limiter)
 
 
-    
+
 
 
 
@@ -41,18 +43,32 @@ const bootstrap = async() => {
 
 
 
-    app.use("/users",userRouter)
-    
+    app.use("/users", userRouter)
+
+
+
+
+    async function test() {
+        const _userModel = new UserRepository(userModel);
+        const user =  await _userModel.findOne({fName:"mahmoud" , paranoid:false},{age:25})
+        console.log(user);
+        
+
+    }
+
+    test()
+
+
     await connectionDB()
-    
+
     app.use("{/*demo}", (req: Request, res: Response) => {
-        throw new AppError(`Invalid URL ${req.originalUrl}`,  404)
+        throw new AppError(`Invalid URL ${req.originalUrl}`, 404)
     })
 
 
     app.use((err: AppError, req: Request, res: Response, next: express.NextFunction) => {
         return res
-            .status(err.statusCode as unknown as number  || 500)
+            .status(err.statusCode as unknown as number || 500)
             .json({ message: err.message, stack: err.stack })
     })
 

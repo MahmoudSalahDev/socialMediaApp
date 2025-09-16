@@ -9,3 +9,7 @@ exports.eventEmmiter.on("confirmEmail", async (data) => {
     const { email, otp } = data;
     await (0, sendEmail_1.sendEmail)({ to: email, subject: "Confirm Email", html: (0, email_template_1.emailTemplate)(otp, "Email Confirmation") });
 });
+exports.eventEmmiter.on("forgetPassword", async (data) => {
+    const { email, otp } = data;
+    await (0, sendEmail_1.sendEmail)({ to: email, subject: "forgetPassword", html: (0, email_template_1.emailTemplate)(otp, "forgetPassword") });
+});
