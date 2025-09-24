@@ -30,6 +30,10 @@
   * Forget Password (request password reset).
   * Reset Password (set a new password).
 
+### 📂 File Management
+* **Upload Image**
+  * Upload image files to AWS S3 storage.
+
 
 ---
 
@@ -47,6 +51,7 @@
 - nodemailer – email service  
 - node-cron – task scheduling  
 - dotenv – environment variables  
+- aws-sdk / @aws-sdk – AWS S3 integration for file storage
 
 ---
 
@@ -77,6 +82,12 @@ PASS =
 BEARER_USER =
 BEARER_ADMIN =
 WEB_CLIENT_ID = 
+#aws config
+APPLICATION_NAME=
+AWS_REGION=
+AWS_BUCKET_NAME=
+AWS_ACCESS_KEY_ID=
+AWS_SECRET_ACCESS_KEY=
 
 put a value to each one of them
 
