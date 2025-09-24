@@ -48,15 +48,15 @@ const bootstrap = async () => {
 
 
 
-    async function test() {
-        const _userModel = new UserRepository(userModel);
-        const user =  await _userModel.findOne({fName:"mahmoud" , paranoid:false},{age:25})
-        console.log(user);
+    // async function test() {
+    //     const _userModel = new UserRepository(userModel);
+    //     const user =  await _userModel.findOne({fName:"mahmoud" , paranoid:false},{age:25})
+    //     console.log(user);
         
 
-    }
+    // }
 
-    test()
+    // test()
 
 
     await connectionDB()

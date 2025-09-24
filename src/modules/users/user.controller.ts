@@ -4,6 +4,7 @@ import { Validation } from "../../middleware/validation";
 import * as UV from "./user.validation";
 import { Authentication } from "../../middleware/authentication";
 import { TokenType } from "../../utils/token";
+import { multerCloud, storageEnum } from "../../middleware/multer.cloud";
 
 const userRouter = Router()
 
@@ -18,6 +19,9 @@ userRouter.post("/logout",Authentication(),Validation(UV.logOutSchema),US.logOut
 userRouter.get("/refreshToken",Authentication(TokenType.refresh),US.refreshToken)
 userRouter.patch("/forgetPassword",Validation(UV.forgetPasswordSchema),US.forgetPassword)
 userRouter.patch("/resetPassword",Validation(UV.resetPasswordSchema),US.resetPassword)
+userRouter.post("/upload",Authentication(),
+    // multerCloud({storeType:storageEnum.disk}).array("files"),
+    US.uploadImage)
 
 
 

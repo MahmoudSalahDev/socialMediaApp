@@ -13,8 +13,6 @@ const express_rate_limit_1 = require("express-rate-limit");
 const classError_1 = require("./utils/classError");
 const user_controller_1 = __importDefault(require("./modules/users/user.controller"));
 const connectionDB_1 = require("./DB/connectionDB");
-const user_repository_1 = require("./DB/repositories/user.repository");
-const user_model_1 = __importDefault(require("./DB/model/user.model"));
 const app = (0, express_1.default)();
 const port = process.env.PORT || 5000;
 const limiter = (0, express_rate_limit_1.rateLimit)({
@@ -33,12 +31,6 @@ const bootstrap = async () => {
     app.use(limiter);
     app.get('/', (req, res) => res.status(200).json({ message: 'Hello World!' }));
     app.use("/users", user_controller_1.default);
-    async function test() {
-        const _userModel = new user_repository_1.UserRepository(user_model_1.default);
-        const user = await _userModel.findOne({ fName: "mahmoud", paranoid: false }, { age: 25 });
-        console.log(user);
-    }
-    test();
     await (0, connectionDB_1.connectionDB)();
     app.use("{/*demo}", (req, res) => {
         throw new classError_1.AppError(`Invalid URL ${req.originalUrl}`, 404);

@@ -48,6 +48,7 @@ const revokeToken_repository_1 = require("../../DB/repositories/revokeToken.repo
 const revokeToken_1 = __importDefault(require("../../DB/model/revokeToken"));
 const uuid_1 = require("uuid");
 const google_auth_library_1 = require("google-auth-library");
+const s3_config_1 = require("../../utils/s3.config");
 class UserService {
     _userModel = new user_repository_1.UserRepository(user_model_1.default);
     _revokeToken = new revokeToken_repository_1.RevokeTokenRepository(revokeToken_1.default);
@@ -245,6 +246,15 @@ class UserService {
         const hash = await (0, hash_1.Hash)(password);
         await this._userModel.updateOne({ email: user?.email }, { password: hash, $unset: { otp: "" } });
         return res.status(200).json({ message: "Success" });
+    };
+    uploadImage = async (req, res, next) => {
+        const { ContentType, originalname } = req.body;
+        const url = await (0, s3_config_1.createUploadFilePresignedUrl)({
+            originalname,
+            ContentType,
+            path: `users/${req.user?._id}`
+        });
+        return res.status(200).json({ message: "Success", url });
     };
 }
 exports.default = new UserService();

@@ -52,4 +52,5 @@ userRouter.post("/logout", (0, authentication_1.Authentication)(), (0, validatio
 userRouter.get("/refreshToken", (0, authentication_1.Authentication)(token_1.TokenType.refresh), user_service_1.default.refreshToken);
 userRouter.patch("/forgetPassword", (0, validation_1.Validation)(UV.forgetPasswordSchema), user_service_1.default.forgetPassword);
 userRouter.patch("/resetPassword", (0, validation_1.Validation)(UV.resetPasswordSchema), user_service_1.default.resetPassword);
+userRouter.post("/upload", (0, authentication_1.Authentication)(), user_service_1.default.uploadImage);
 exports.default = userRouter;

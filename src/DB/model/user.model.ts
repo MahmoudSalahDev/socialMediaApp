@@ -83,21 +83,18 @@ userSchema.virtual("userName").set(function (value) {
 })
 
 
-userSchema.pre(["findOne","updateOne"],async function(){
-    console.log("----------------------------------pre deleteone hook-------------------");
-    console.log({this:this , query:this.getQuery()});
-    const query = this.getQuery()
-    const {paranoid , ...rest} = query
-    if(paranoid==false){
-        this.setQuery({...rest}) 
-    }else{
-        this.setQuery({...rest , deletedAt:{$exists:false}}) 
-    }
-
-
-
-})
-
+// userSchema.pre(["findOne","updateOne"],async function(){
+//     console.log("----------------------------------pre deleteone hook-------------------");
+//     console.log({this:this , query:this.getQuery()});
+//     const query = this.getQuery()
+//     const {paranoid , ...rest} = query
+//     if(paranoid==false){
+//         this.setQuery({...rest}) 
+//     }else{
+//         this.setQuery({...rest , deletedAt:{$exists:false}}) 
+//     }
+// })
+ 
 
 
 const userModel = mongoose.models.User || mongoose.model<IUser>("User", userSchema)
