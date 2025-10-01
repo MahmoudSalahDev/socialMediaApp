@@ -1,5 +1,6 @@
 import z from "zod"
 import { GenderType } from "../../DB/model/user.model";
+import { Types } from "mongoose";
 
 export enum FlagType {
     all = "all",
@@ -34,6 +35,27 @@ export const confirmEmailSchema = {
         email: z.email(),
         otp: z.string().regex(/^\d{6}$/).trim()
     }).required()
+}
+
+export const freezeAccountSchema = {
+    params: z.strictObject({
+        userId: z.string().optional(),
+    }).required().refine((value) => {
+        return value?.userId ? Types.ObjectId.isValid(value.userId) : true
+    }, {
+        message: "userId is required",
+        path: ["userId"]
+    })
+}
+export const unfreezeAccountSchema = {
+    params: z.strictObject({
+        userId: z.string(),
+    }).required().refine((value) => {
+        return value?.userId ? Types.ObjectId.isValid(value.userId) : true
+    }, {
+        message: "userId is required",
+        path: ["userId"]
+    })
 }
 
 export const resetPasswordSchema = {
@@ -72,6 +94,45 @@ export const logOutSchema = {
     }).required()
 }
 
+export const updatePasswordSchema = {
+    body: z.object({
+        oldPassword: z.string(),
+        newPassword: z.string(),
+        cPassword: z.string(),
+    })
+        .required()
+        .superRefine((data, ctx) => {
+            if (data.newPassword !== data.cPassword) {
+                ctx.addIssue({
+                    code: "custom",
+                    path: ["cPassword"],
+                    message: "newPassword and cPassword do not match!!",
+                });
+            }
+        }),
+};
+
+
+export const updateProfileSchema = {
+    body: z.object({
+        userName: z.string().min(2).max(30).optional(),
+        phone: z.string().optional(),
+        gender: z.enum([GenderType.male, GenderType.female]).optional(),
+        age: z.number().min(18).max(65).optional(),
+    }).refine((data) => {
+        return data.userName || data.phone || data.gender || data.age;
+    }, {
+        message: "You must provide at least one field to update",
+    })
+};
+
+export const updateEmailSchema = {
+    body: z.object({
+        email: z.email(),
+    }).required()
+};
+
+
 
 export type signUpSchemaType = z.infer<typeof signUpSchema.body>
 export type signInSchemaType = z.infer<typeof signInSchema.body>
@@ -80,3 +141,8 @@ export type logOutSchemaType = z.infer<typeof logOutSchema.body>
 export type loginWithGmailSchemaType = z.infer<typeof loginWithGmailSchema.body>
 export type forgetPasswordSchemaType = z.infer<typeof forgetPasswordSchema.body>
 export type resetPasswordSchemaType = z.infer<typeof resetPasswordSchema.body>
+export type freezeAccountSchemaType = z.infer<typeof freezeAccountSchema.params>
+
+export type updatePasswordSchemaType = z.infer<typeof updatePasswordSchema.body>
+
+export type updateProfileSchemaType = z.infer<typeof updateProfileSchema.body>;

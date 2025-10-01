@@ -1,6 +1,5 @@
 # 📱 SocialMediaApp API
 
-
 ---
 
 ## 🚀 Features
@@ -8,37 +7,59 @@
 ### 👤 User Management
 
 * **Signup & Verification**
-
   * Register new users with email confirmation.
+
 * **Authentication**
-
   * Login with email/password.
+
+* **Two-Factor Authentication (2FA)**
+  * **Enable 2FA (apply 2FA)** – Request to enable 2FA, an OTP will be sent to user’s email.  
+    `POST /enable-2fa`
+  * **Confirm 2FA** – Confirm the OTP to finalize enabling 2FA.  
+    `POST /confirm-2fa`
+
 * **User Profile**
-
   * Get User Profile information.
+  * Update basic information.  
+    `PATCH /updateProfile`
+  * Update email.  
+    `PATCH /updateEmail`
+
 * **Email Confirmation**
-
   * Confirm email address with OTP.
+
 * **Logout**
+  * Log out from current device or all devices.  
+    `POST /logout`
 
-  * Log out from current device or all devices.
 * **Token Management**
+  * Refresh Token endpoint to get new access & refresh tokens.  
+    `GET /refreshToken`
 
-  * Refresh Token endpoint to get new access & refresh tokens.
 * **Password Management**
+  * Forget Password (request password reset).  
+    `PATCH /forgetPassword`
+  * Reset Password (set a new password).  
+    `PATCH /resetPassword`
+  * Update password.  
+    `PATCH /updatePassword`
 
-  * Forget Password (request password reset).
-  * Reset Password (set a new password).
+* **Account Management**
+  * Freeze account.  
+    `DELETE /freeze/:userId`
+  * Unfreeze account.  
+    `PATCH /unfreeze/:userId`
+
+---
 
 ### 📂 File Management
-* **Upload Image**
-  * Upload image files to AWS S3 storage.
-
+* **Upload Image**  
+  * Upload image files to AWS S3 storage.  
+  `POST /upload`
 
 ---
 
 ## 🛠 Tech Stack
-
 - **Backend Framework:** Express.js  
 - **Database:** MongoDB with Mongoose  
 
@@ -51,7 +72,7 @@
 - nodemailer – email service  
 - node-cron – task scheduling  
 - dotenv – environment variables  
-- aws-sdk / @aws-sdk – AWS S3 integration for file storage
+- aws-sdk / @aws-sdk – AWS S3 integration for file storage  
 
 ---
 
@@ -61,6 +82,7 @@
 ```bash
 git clone https://github.com/MahmoudSalahDev/socialMediaApp
 cd socialMediaApp
+
 
 ### 2. Install dependencies:
 

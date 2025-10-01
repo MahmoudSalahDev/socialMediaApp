@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.updateEmailSchema = exports.updateProfileSchema = exports.updatePasswordSchema = exports.logOutSchema = exports.forgetPasswordSchema = exports.signInSchema = exports.loginWithGmailSchema = exports.resetPasswordSchema = exports.unfreezeAccountSchema = exports.freezeAccountSchema = exports.confirmEmailSchema = exports.signUpSchema = exports.FlagType = void 0;
+exports.logOutSchema = exports.forgetPasswordSchema = exports.signInSchema = exports.loginWithGmailSchema = exports.resetPasswordSchema = exports.unfreezeAccountSchema = exports.freezeAccountSchema = exports.confirmEmailSchema = exports.signUpSchema = exports.FlagType = void 0;
 const zod_1 = __importDefault(require("zod"));
 const user_model_1 = require("../../DB/model/user.model");
 const mongoose_1 = require("mongoose");
@@ -84,39 +84,5 @@ exports.forgetPasswordSchema = {
 exports.logOutSchema = {
     body: zod_1.default.object({
         flag: zod_1.default.enum(FlagType),
-    }).required()
-};
-exports.updatePasswordSchema = {
-    body: zod_1.default.object({
-        oldPassword: zod_1.default.string(),
-        newPassword: zod_1.default.string(),
-        cPassword: zod_1.default.string(),
-    })
-        .required()
-        .superRefine((data, ctx) => {
-        if (data.newPassword !== data.cPassword) {
-            ctx.addIssue({
-                code: "custom",
-                path: ["cPassword"],
-                message: "newPassword and cPassword do not match!!",
-            });
-        }
-    }),
-};
-exports.updateProfileSchema = {
-    body: zod_1.default.object({
-        userName: zod_1.default.string().min(2).max(30).optional(),
-        phone: zod_1.default.string().optional(),
-        gender: zod_1.default.enum([user_model_1.GenderType.male, user_model_1.GenderType.female]).optional(),
-        age: zod_1.default.number().min(18).max(65).optional(),
-    }).refine((data) => {
-        return data.userName || data.phone || data.gender || data.age;
-    }, {
-        message: "You must provide at least one field to update",
-    })
-};
-exports.updateEmailSchema = {
-    body: zod_1.default.object({
-        email: zod_1.default.email(),
     }).required()
 };

@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.createUploadFilePresignedUrl = exports.uploadFiles = exports.uploadLargeFile = exports.uploadFile = exports.s3Client = void 0;
+exports.listFiles = exports.deleteFiles = exports.deleteFile = exports.createGetFilePreSignedUrl = exports.getFile = exports.createUploadFilePresignedUrl = exports.uploadFiles = exports.uploadLargeFile = exports.uploadFile = exports.s3Client = void 0;
 const client_s3_1 = require("@aws-sdk/client-s3");
 const uuid_1 = require("uuid");
 const multer_cloud_1 = require("../middleware/multer.cloud");
@@ -66,12 +66,58 @@ const uploadFiles = async ({ storeType = multer_cloud_1.storageEnum.cloud, Bucke
 };
 exports.uploadFiles = uploadFiles;
 const createUploadFilePresignedUrl = async ({ Bucket = process.env.APPLICATION_NAME, path = "general", originalname, ContentType, expiresIn = 60 * 60 }) => {
+    const Key = `${process.env.APPLICATION_NAME}/${path}/${(0, uuid_1.v4)()}_${originalname}`;
     const command = new client_s3_1.PutObjectCommand({
         Bucket,
-        Key: `${process.env.APPLICATION_NAME}/${path}/${(0, uuid_1.v4)()}_${originalname}`,
+        Key,
         ContentType
+    });
+    const url = await (0, s3_request_presigner_1.getSignedUrl)((0, exports.s3Client)(), command, { expiresIn });
+    return { url, Key };
+};
+exports.createUploadFilePresignedUrl = createUploadFilePresignedUrl;
+const getFile = async ({ Bucket = process.env.AWS_BUCKET_NAME, Key }) => {
+    const command = new client_s3_1.GetObjectCommand({
+        Bucket,
+        Key
+    });
+    return await (0, exports.s3Client)().send(command);
+};
+exports.getFile = getFile;
+const createGetFilePreSignedUrl = async ({ Bucket = process.env.AWS_BUCKET_NAME, Key, expiresIn = 60, downloadName }) => {
+    const command = new client_s3_1.GetObjectCommand({
+        Bucket,
+        Key,
+        ResponseContentDisposition: downloadName ? `attachment; filename="${downloadName}"` : undefined
     });
     const url = await (0, s3_request_presigner_1.getSignedUrl)((0, exports.s3Client)(), command, { expiresIn });
     return url;
 };
-exports.createUploadFilePresignedUrl = createUploadFilePresignedUrl;
+exports.createGetFilePreSignedUrl = createGetFilePreSignedUrl;
+const deleteFile = async ({ Bucket = process.env.AWS_BUCKET_NAME, Key, }) => {
+    const command = new client_s3_1.DeleteObjectCommand({
+        Bucket,
+        Key,
+    });
+    return await (0, exports.s3Client)().send(command);
+};
+exports.deleteFile = deleteFile;
+const deleteFiles = async ({ Bucket = process.env.AWS_BUCKET_NAME, urls, Quiet = false }) => {
+    const command = new client_s3_1.DeleteObjectsCommand({
+        Bucket,
+        Delete: {
+            Objects: urls.map(url => ({ Key: url })),
+            Quiet
+        },
+    });
+    return await (0, exports.s3Client)().send(command);
+};
+exports.deleteFiles = deleteFiles;
+const listFiles = async ({ Bucket = process.env.AWS_BUCKET_NAME, path }) => {
+    const command = new client_s3_1.ListObjectsV2Command({
+        Bucket,
+        Prefix: `${process.env.APPLICATION_NAME}/${path}/`,
+    });
+    return await (0, exports.s3Client)().send(command);
+};
+exports.listFiles = listFiles;

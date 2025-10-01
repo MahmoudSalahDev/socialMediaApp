@@ -88,46 +88,25 @@ class UserService {
     };
     signIn = async (req, res, next) => {
         const { email, password } = req.body;
-        const user = await this._userModel.findOne({
-            email,
-            confirmed: { $exists: true },
-            provider: user_model_1.ProviderType.system,
-        });
+        const user = await this._userModel.findOne({ email, confirmed: { $exists: true }, provider: user_model_1.ProviderType.system });
         if (!user) {
             throw new classError_1.AppError("Email Not Found or Not confirmed or invalid provider!!!!", 404);
         }
-        if (!(await (0, hash_1.Compare)(password, user?.password))) {
+        if (!await (0, hash_1.Compare)(password, user?.password)) {
             throw new classError_1.AppError("Invalid Password!!", 404);
-        }
-        if (user.is2FAEnabled) {
-            const otp = await (0, sendEmail_1.generateOTP)();
-            const hashedOtp = await (0, hash_1.Hash)(String(otp));
-            user.tempOtp = hashedOtp;
-            user.otpExpiry = new Date(Date.now() + 5 * 60 * 1000);
-            await user.save();
-            event_1.eventEmmiter.emit("send2FA", { email: user.email, otp });
-            return res.status(200).json({
-                message: "2FA code sent to your email. Please verify to complete login.",
-            });
         }
         const jwtid = (0, uuid_1.v4)();
         const access_token = await (0, token_1.GenerateToken)({
             payload: { id: user._id, email },
-            signature: user.role == user_model_1.RoleType.user
-                ? process.env.ACCESS_TOKEN_USER
-                : process.env.ACCESS_TOKEN_ADMIN,
-            options: { expiresIn: "1h", jwtid },
+            signature: user.role == user_model_1.RoleType.user ? process.env.ACCESS_TOKEN_USER : process.env.ACCESS_TOKEN_ADMIN,
+            options: { expiresIn: "1h", jwtid }
         });
         const refresh_token = await (0, token_1.GenerateToken)({
             payload: { id: user._id, email },
-            signature: user.role == user_model_1.RoleType.user
-                ? process.env.REFRESH_TOKEN_USER
-                : process.env.REFRESH_TOKEN_ADMIN,
-            options: { expiresIn: "1y", jwtid },
+            signature: user.role == user_model_1.RoleType.user ? process.env.REFRESH_TOKEN_USER : process.env.REFRESH_TOKEN_ADMIN,
+            options: { expiresIn: "1y", jwtid }
         });
-        return res
-            .status(200)
-            .json({ message: "User logged in successfully", access_token, refresh_token });
+        return res.status(200).json({ message: "User logged in successfully", access_token, refresh_token });
     };
     getProfile = async (req, res, next) => {
         return res.status(200).json({ message: "Success", user: req?.user });
@@ -312,101 +291,6 @@ class UserService {
             throw new classError_1.AppError("User Not Found !!!!", 404);
         }
         return res.status(200).json({ message: "unFreezed" });
-    };
-    updatePassword = async (req, res, next) => {
-        try {
-            const { oldPassword, newPassword } = req.body;
-            if (!req.user) {
-                throw new classError_1.AppError("Unauthorized", 401);
-            }
-            const isMatch = await (0, hash_1.Compare)(oldPassword, req.user.password);
-            if (!isMatch) {
-                throw new classError_1.AppError("Invalid Old Password", 400);
-            }
-            const hash = await (0, hash_1.Hash)(newPassword);
-            await this._userModel.updateOne({ _id: req.user._id }, { password: hash, changeCredentials: new Date() });
-            return res.status(200).json({ message: "Password updated successfully 👍" });
-        }
-        catch (err) {
-            next(err);
-        }
-    };
-    updateProfile = async (req, res, next) => {
-        try {
-            const { userName, phone, gender, age } = req.body;
-            if (!req.user) {
-                throw new classError_1.AppError("Unauthorized", 401);
-            }
-            if (userName)
-                req.user.userName = userName;
-            if (gender)
-                req.user.gender = gender;
-            if (age)
-                req.user.age = age;
-            if (phone)
-                req.user.phone = phone;
-            await req.user.save();
-            return res.status(200).json({
-                message: "Profile updated successfully 👍",
-                user: req.user,
-            });
-        }
-        catch (err) {
-            next(err);
-        }
-    };
-    updateEmail = async (req, res, next) => {
-        try {
-            const { email } = req.body;
-            if (!email) {
-                throw new classError_1.AppError("Email is required!", 400);
-            }
-            const exists = await this._userModel.findOne({ email });
-            if (exists) {
-                throw new classError_1.AppError("Email Already Exists!", 400);
-            }
-            const otp = await (0, sendEmail_1.generateOTP)();
-            const hashedOtp = await (0, hash_1.Hash)(String(otp));
-            event_1.eventEmmiter.emit("confirmEmail", { email, otp });
-            if (req.user) {
-                req.user.email = email;
-            }
-            if (!req.user) {
-                return res.status(401).json({ message: "Unauthorized" });
-            }
-            req.user.otp = hashedOtp;
-            req.user.confirmed = false;
-            await req.user.save();
-            return res.status(200).json({ message: "Email updated, please confirm OTP" });
-        }
-        catch (err) {
-            next(err);
-        }
-    };
-    enable2FA = async (req, res) => {
-        if (!req.user)
-            return res.status(401).json({ message: "Unauthorized" });
-        const otp = (0, sendEmail_1.generateOTP)();
-        const hashedOtp = await (0, hash_1.Hash)(String(otp));
-        req.user.tempOtp = hashedOtp;
-        req.user.otpExpiry = new Date(Date.now() + 5 * 60 * 1000);
-        await req.user.save();
-        event_1.eventEmmiter.emit("sendEmail", { email: req.user.email, otp });
-        return res.status(200).json({ message: "OTP sent to your email" });
-    };
-    confirm2FA = async (req, res) => {
-        const { otp } = req.body;
-        if (!req.user)
-            return res.status(401).json({ message: "Unauthorized" });
-        const isValid = await (0, hash_1.Compare)(otp, req.user.tempOtp);
-        if (!isValid || req.user.otpExpiry < new Date()) {
-            return res.status(400).json({ message: "Invalid or expired OTP" });
-        }
-        req.user.is2FAEnabled = true;
-        req.user.tempOtp = undefined;
-        req.user.otpExpiry = undefined;
-        await req.user.save();
-        return res.status(200).json({ message: "2FA enabled successfully ✅" });
     };
 }
 exports.default = new UserService();

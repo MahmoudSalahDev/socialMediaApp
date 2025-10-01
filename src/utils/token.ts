@@ -66,8 +66,8 @@ export const decodedTokenAndFetchUser = async (token: string, signature: string)
     if (!user) {
         throw new AppError("user not exist!", 404)
     }
-    if (!user?.confirmed) {
-        throw new AppError("Please confirm email first!", 404)
+    if (!user?.confirmed ) {
+        throw new AppError("Please confirm email first! or Freezed", 404)
     }
 
     if(await _revokeToken.findOne({tokenId:decoded?.jti})){

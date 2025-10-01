@@ -31,11 +31,20 @@ export interface IUser {
     confirmed?: boolean,
     otp?: string,
     changeCredentials?: Date,
-    image?: string,
+    // image?: string,
+    profileImage?: string,
+    tempProfileImage?: string,
     provider?: ProviderType,
     createdAt: Date,
     updatedAt: Date,
-    deletedAt?:Date
+    deletedAt?: Date,
+    deletedBy?: Types.ObjectId,
+    restoredAt?: Date,
+    restoredBy?: Types.ObjectId,
+    friends?: Types.ObjectId[],
+    is2FAEnabled?: boolean,
+    tempOtp?: string | undefined,
+    otpExpiry?: Date | undefined,
 }
 
 
@@ -54,7 +63,9 @@ const userSchema = new mongoose.Schema<IUser>({
         }
     },
     phone: { type: String },
-    image: { type: String },
+    // image: { type: String },
+    profileImage: { type: String },
+    tempProfileImage: { type: String },
     address: { type: String },
     gender: {
         type: String, enum: GenderType, required: function () {
@@ -67,9 +78,16 @@ const userSchema = new mongoose.Schema<IUser>({
     otp: { type: String },
     changeCredentials: { type: Date },
     deletedAt: { type: Date },
+    deletedBy: { type: Types.ObjectId, ref: "User" },
+    restoredAt: { type: Date },
+    restoredBy: { type: Types.ObjectId, ref: "User" },
+    friends: { type: Types.ObjectId, ref: "User" },
+    is2FAEnabled: { type: Boolean, default: false },
+    tempOtp: { type: String },
+    otpExpiry: { type: Date },
 }, {
     timestamps: true,
-    strictQuery:true,
+    strictQuery: true,
     toObject: { virtuals: true },
     toJSON: { virtuals: true },
 })
@@ -94,7 +112,7 @@ userSchema.virtual("userName").set(function (value) {
 //         this.setQuery({...rest , deletedAt:{$exists:false}}) 
 //     }
 // })
- 
+
 
 
 const userModel = mongoose.models.User || mongoose.model<IUser>("User", userSchema)

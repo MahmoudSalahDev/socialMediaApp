@@ -55,9 +55,4 @@ userRouter.patch("/resetPassword", (0, validation_1.Validation)(UV.resetPassword
 userRouter.delete("/freeze{/:userId}", (0, authentication_1.Authentication)(token_1.TokenType.access), (0, validation_1.Validation)(UV.freezeAccountSchema), user_service_1.default.freezeAccount);
 userRouter.patch("/unfreeze/:userId", (0, authentication_1.Authentication)(token_1.TokenType.access), (0, validation_1.Validation)(UV.unfreezeAccountSchema), user_service_1.default.unfreezeAccount);
 userRouter.post("/upload", (0, authentication_1.Authentication)(), user_service_1.default.uploadImage);
-userRouter.patch("/updatePassword", (0, authentication_1.Authentication)(token_1.TokenType.access), (0, validation_1.Validation)(UV.updatePasswordSchema), user_service_1.default.updatePassword);
-userRouter.patch("/updateProfile", (0, authentication_1.Authentication)(token_1.TokenType.access), (0, validation_1.Validation)(UV.updateProfileSchema), user_service_1.default.updateProfile);
-userRouter.patch("/updateEmail", (0, authentication_1.Authentication)(), (0, validation_1.Validation)(UV.updateEmailSchema), user_service_1.default.updateEmail);
-userRouter.post("/enable-2fa", (0, authentication_1.Authentication)(token_1.TokenType.access), user_service_1.default.enable2FA);
-userRouter.post("/confirm-2fa", (0, authentication_1.Authentication)(token_1.TokenType.access), user_service_1.default.confirm2FA);
 exports.default = userRouter;
