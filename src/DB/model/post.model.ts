@@ -21,6 +21,7 @@ export interface IPost {
     likes: Schema.Types.ObjectId[],
     allowComment: allowCommentEnum,
     availability: availabilityEnum,
+    changeCredentials?: Date,
     deletedAt?: Date,
     deletedBy?: Schema.Types.ObjectId,
     restoredAt?: Date,
@@ -37,6 +38,7 @@ export const postSchema = new Schema<IPost>({
     likes: [{ type: Schema.Types.ObjectId, ref: "User"}],
     allowComment: {type:String , enum:allowCommentEnum , default:allowCommentEnum.allow},
     availability: {type:String , enum:availabilityEnum , default:availabilityEnum.public},
+    changeCredentials: { type: Date },
     deletedAt: {type:Date  },
     deletedBy: { type: Schema.Types.ObjectId, ref: "User"},
     restoredAt: {type:Date  },
@@ -62,6 +64,12 @@ postSchema.pre(["findOne","find"],function(next){
         this.setQuery({...rest,deletedAt:{$exists:false}})
     }
     next()
+})
+
+postSchema.virtual("comments",{
+    ref:"Comment",
+    localField:"_id",
+    foreignField:"postId"
 })
 
 

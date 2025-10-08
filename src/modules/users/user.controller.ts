@@ -5,6 +5,8 @@ import * as UV from "./user.validation";
 import { Authentication } from "../../middleware/authentication";
 import { TokenType } from "../../utils/token";
 import { multerCloud, storageEnum } from "../../middleware/multer.cloud";
+import { Authorization } from "../../middleware/authorization";
+import { RoleType } from "../../DB/model/user.model";
 
 const userRouter = Router()
 
@@ -21,6 +23,7 @@ userRouter.patch("/forgetPassword", Validation(UV.forgetPasswordSchema), US.forg
 userRouter.patch("/resetPassword", Validation(UV.resetPasswordSchema), US.resetPassword)
 userRouter.delete("/freeze{/:userId}", Authentication(TokenType.access), Validation(UV.freezeAccountSchema), US.freezeAccount)
 userRouter.patch("/unfreeze/:userId", Authentication(TokenType.access), Validation(UV.unfreezeAccountSchema), US.unfreezeAccount)
+
 
 
 userRouter.post("/upload", Authentication(),
@@ -61,6 +64,52 @@ userRouter.post(
     "/confirm-2fa",
     Authentication(TokenType.access),
     US.confirm2FA
+);
+
+//-----------dash board---------------
+userRouter.get(
+    "/dashBoard",
+    Authentication(),
+    Authorization({ accessRoles: [RoleType.superAdmin, RoleType.admin] }),
+    US.dashBoard
+);
+
+//-----------change role---------------
+userRouter.patch(
+    "/updateRole/:userId",
+    Authentication(),
+    Authorization({ accessRoles: [RoleType.superAdmin, RoleType.admin] }),
+    US.updateRole
+);
+
+//-----------add friend---------------
+userRouter.post(
+    "/sendRequest/:userId",
+    Authentication(),
+    US.sendRequest
+);
+
+
+//-----------acceptRequest---------------
+userRouter.patch(
+    "/acceptRequest/:requestId",
+    Authentication(),
+    US.acceptRequest
+);
+
+userRouter.delete("/deleteRequest/:requestId",
+    Authentication(),
+    US.deleteFriendRequest);
+
+
+userRouter.patch("/:userId/block", Authentication(), US.blockUser);
+userRouter.patch("/:userId/unblock", Authentication(), US.unblockUser);
+
+
+userRouter.delete(
+  "/unfriend/:userId",
+  Authentication(),
+  US.unFriend
 );
 
 export default userRouter

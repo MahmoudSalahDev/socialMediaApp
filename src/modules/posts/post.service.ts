@@ -1,23 +1,24 @@
 import { NextFunction, Request, Response } from "express";
-import userModel from "../../DB/model/user.model";
+import userModel, { RoleType } from "../../DB/model/user.model";
 import { UserRepository } from "../../DB/repositories/user.repository";
-// import { Compare, Hash } from "../../utils/hash";
-// import { eventEmmiter } from "../../utils/event";
-// import { generateOTP } from "../../service/sendEmail";
+
 import { v4 as uuidv4 } from "uuid";
-// import { OAuth2Client, TokenPayload } from "google-auth-library";
-// import { multerCloud, storageEnum } from "../../middleware/multer.cloud";
-// import { createUploadFilePresignedUrl, uploadFile, uploadFiles, uploadLargeFile } from "../../utils/s3.config";
+
 import postModel, { availabilityEnum, IPost } from "../../DB/model/post.model";
 import { PostRepository } from "../../DB/repositories/post.repository";
 import { AppError } from "../../utils/classError";
 import { deleteFiles, uploadFiles } from "../../utils/s3.config";
 import { ActionEnum, likePostDto, likePostQueryDto } from "./post.validation";
 import { UpdateQuery } from "mongoose";
+import { CommentRepository } from "../../DB/repositories/comment.repository";
+import commentModel from "../../DB/model/comment.model";
+
 
 class PostService {
   private _userModel = new UserRepository(userModel);
   private _postModel = new PostRepository(postModel);
+  private _commentModel = new CommentRepository(commentModel);
+
 
   constructor() { }
 
@@ -25,7 +26,7 @@ class PostService {
   createPost = async (req: Request, res: Response, next: NextFunction) => {
     if (req?.body?.tags?.length
       &&
-      (await this._userModel.find({ _id: { $in: req?.body?.tags } })).length !== req?.body?.tags?.length
+      (await this._userModel.find({ filter: { _id: { $in: req?.body?.tags } } })).length !== req?.body?.tags?.length
     ) {
       throw new AppError("Invalid user Id", 400)
     }
@@ -134,7 +135,7 @@ class PostService {
     if (req?.body?.tags) {
       if (req?.body?.tags?.length
         &&
-        (await this._userModel.find({ _id: { $in: req?.body?.tags } })).length !== req?.body?.tags?.length
+        (await this._userModel.find({ filter: { _id: { $in: req?.body?.tags } } })).length !== req?.body?.tags?.length
       ) {
         throw new AppError("Invalid user Id", 400)
       }
@@ -145,6 +146,205 @@ class PostService {
 
     return res.status(201).json({ message: `Updated`, post });
   };
+
+  //=============getPosts============
+  getPosts = async (req: Request, res: Response, next: NextFunction) => {
+
+    // let { page = 1, limit = 5 } = req?.query as unknown as { page: number, limit: number }
+
+
+    // const {currentPage , docs , count , numberOfPages} = await this._postModel.paginate({ filter: {}, query: { page, limit } })
+
+
+    // return res.status(201).json({ message: `success`, currentPage,numberOfPages, countDocuments:count, posts:docs  });
+
+    const posts = await this._postModel.find({
+      filter: {}, options: {
+        populate: [
+          {
+            path: "comments",
+            match: {
+              commentId: { $exists: false }
+            },
+            populate: {
+              path: "replies",
+
+            }
+          }
+        ]
+      }
+    })
+
+    // let result = []
+    // for (const post of posts) {
+    //   const comments = await this._commentModel.find({ filter: { postId: post._id } })
+    //   result.push({ ...post, comments })
+    // }
+
+
+    return res.status(201).json({ message: `success`, posts });
+
+  };
+
+  //=============getPostById ============
+getPostById  = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { postId } = req.params;
+
+    const post = await this._postModel.findOne({
+      _id: postId,
+      deletedAt: { $exists: false }  
+    },
+    undefined,
+    {
+      populate: [
+        {
+          path: "comments",
+          match: { refId: postId, onModel: "Post", commentId: { $exists: false } },
+          populate: {
+            path: "replies",
+            match: { onModel: "Comment" },
+          },
+        },
+        {
+          path: "createdBy",
+        }
+      ],
+    });
+
+    if (!post) {
+      throw new AppError("Post not found", 404);
+    }
+
+    return res.status(200).json({
+      message: "Post fetched successfully ✅",
+      post,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+
+  freezePost = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { postId } = req.params as { postId: string };
+
+      if (![RoleType.admin, RoleType.superAdmin, RoleType.user].includes(req?.user?.role!)) {
+        throw new AppError("Unauthorized", 401);
+      }
+
+      const post = await this._postModel.findOneAndUpdate(
+        { _id: postId, deletedAt: { $exists: false } },
+        {
+          deletedAt: new Date(),
+          deletedBy: req.user?._id,
+          changeCredentials: new Date(),
+          $unset: { restoredAt: "", restoredBy: "" }
+        },
+        { new: true }
+      );
+
+      if (!post) {
+        throw new AppError("Post Not Found or already freezed!", 404);
+      }
+
+      return res.status(200).json({ message: "Post Freezed" });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+
+  unfreezePost = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { postId } = req.params;
+
+      if (![RoleType.admin, RoleType.superAdmin, RoleType.user].includes(req.user?.role!)) {
+        throw new AppError("Unauthorized", 401);
+      }
+
+      const post = await this._postModel.findOneAndUpdate(
+        { _id: postId, deletedAt: { $exists: true }, deletedBy: { $ne: postId } },
+        {
+          $unset: { deletedAt: "", deletedBy: "" },
+          restoredBy: req.user?._id,
+          restoredAt: new Date(),
+          changeCredentials: new Date()
+        },
+        { new: true }
+      );
+
+      if (!post) {
+        throw new AppError("Post Not Found or not freezed!", 404);
+      }
+
+      return res.status(200).json({ message: "Post Unfreezed" });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  hardDeletePost = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { postId } = req.params as { postId: string };
+
+      if (
+        ![RoleType.admin, RoleType.superAdmin].includes(req?.user?.role!) &&
+        !req.user?._id
+      ) {
+        throw new AppError("Unauthorized", 401);
+      }
+
+      const post = await this._postModel.findOne({ _id: postId });
+      if (!post) {
+        throw new AppError("Post not found", 404);
+      }
+
+      if (
+        ![RoleType.admin, RoleType.superAdmin].includes(req.user!.role!) &&
+        post.createdBy.toString() !== req.user!._id.toString()
+      ) {
+        throw new AppError("Unauthorized", 401);
+      }
+
+      const comments = await this._commentModel.find({
+        filter: {
+          refId: postId,
+          onModel: "Post",
+        },
+      });
+
+      for (const comment of comments) {
+        await this._commentModel.deleteMany({
+          refId: comment._id,
+          onModel: "Comment",
+        });
+      }
+
+      await this._commentModel.deleteMany({
+        refId: postId,
+        onModel: "Post",
+      });
+
+      const result = await this._postModel.deleteOne({ _id: postId });
+
+      if (result.deletedCount === 0) {
+        throw new AppError("Post not found or already deleted", 404);
+      }
+
+      return res.status(200).json({ message: "Post and related comments deleted" });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+
+  
+
+
+
+
 
 }
 

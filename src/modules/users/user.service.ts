@@ -13,10 +13,18 @@ import { v4 as uuidv4 } from "uuid";
 import { OAuth2Client, TokenPayload } from "google-auth-library";
 import { multerCloud, storageEnum } from "../../middleware/multer.cloud";
 import { createUploadFilePresignedUrl, uploadFile, uploadFiles, uploadLargeFile } from "../../utils/s3.config";
+import { PostRepository } from "../../DB/repositories/post.repository";
+import postModel from "../../DB/model/post.model";
+import { FriendRequestRepository } from "../../DB/repositories/friendRequest.repository";
+import friendRequestModel from "../../DB/model/friendRequest.model";
+import { Schema } from "mongoose";
+
 
 class UserService {
   private _userModel = new UserRepository(userModel);
   private _revokeToken = new RevokeTokenRepository(RevokeTokenModel);
+  private _postModel = new PostRepository(postModel);
+  private _friendRequestModel = new FriendRequestRepository(friendRequestModel);
 
   constructor() { }
 
@@ -96,7 +104,7 @@ class UserService {
       const hashedOtp = await Hash(String(otp));
 
       user.tempOtp = hashedOtp;
-      user.otpExpiry = new Date(Date.now() + 5 * 60 * 1000); 
+      user.otpExpiry = new Date(Date.now() + 5 * 60 * 1000);
       await user.save();
 
       eventEmmiter.emit("send2FA", { email: user.email, otp });
@@ -496,7 +504,7 @@ class UserService {
     const hashedOtp = await Hash(String(otp));
 
     req.user.tempOtp = hashedOtp;
-    req.user.otpExpiry = new Date(Date.now() + 5 * 60 * 1000); 
+    req.user.otpExpiry = new Date(Date.now() + 5 * 60 * 1000);
     await req.user.save();
 
     eventEmmiter.emit("sendEmail", { email: req.user.email, otp });
@@ -521,6 +529,282 @@ class UserService {
 
     return res.status(200).json({ message: "2FA enabled successfully ✅" });
   };
+
+  dashBoard = async (req: Request, res: Response, next: NextFunction) => {
+
+    const result = await Promise.allSettled([
+      this._userModel.find({ filter: {} }),
+      this._postModel.find({ filter: {} })
+    ])
+
+    // if (!user) {
+    //   throw new AppError("User Not Found !!!!", 404);
+    // }
+
+    return res.status(200).json({ message: "success", result });
+  };
+
+  updateRole = async (req: Request, res: Response, next: NextFunction) => {
+
+    const { userId } = req.params
+
+    const { role: newRole } = req.body
+
+    const denyRoles: RoleType[] = [newRole, RoleType.superAdmin]
+
+    if (req?.user?.role == RoleType.admin) {
+      denyRoles.push(RoleType.admin)
+      if (newRole == RoleType.superAdmin) {
+        throw new AppError("an admin can't update a role to be superAdmin", 404);
+      }
+    }
+    const user = await this._userModel.findOneAndUpdate(
+      { _id: userId, role: { $nin: denyRoles } },
+      { role: newRole },
+      { new: true })
+
+
+    if (!user) {
+      throw new AppError("User Not Found !!!!", 404);
+    }
+
+
+
+    return res.status(200).json({ message: "success", user });
+  };
+
+  sendRequest = async (req: Request, res: Response, next: NextFunction) => {
+
+    const { userId } = req.params
+
+
+
+    const user = await this._userModel.findOne({ _id: userId })
+    if (!user) {
+      throw new AppError("User Not Found !!!!", 404);
+    }
+    if (req?.user?._id == userId) {
+      throw new AppError("U can't send friend request to yourself", 404);
+    }
+
+    const checkRequest = await this._friendRequestModel.findOne({
+      createdBy: { $in: [req?.user?._id, userId] },
+      sendTo: { $in: [req?.user?._id, userId] }
+    })
+    if (checkRequest) {
+      throw new AppError("Request already exists!!", 400);
+    }
+
+
+    const friendRequest = await this._friendRequestModel.create({
+      createdBy: req?.user?._id as unknown as Schema.Types.ObjectId,
+      sendTo: userId as unknown as Schema.Types.ObjectId
+    })
+
+
+
+
+    return res.status(200).json({ message: "success", friendRequest });
+  };
+
+  acceptRequest = async (req: Request, res: Response, next: NextFunction) => {
+
+    const { requestId } = req.params
+
+
+
+
+    const checkRequest = await this._friendRequestModel.findOneAndUpdate({
+      _id: requestId,
+      sendTo: req?.user?._id,
+      acceptedAt: { $exists: false }
+    }, {
+      acceptedAt: new Date()
+    })
+    if (!checkRequest) {
+      throw new AppError("Request not found", 400);
+    }
+
+    await Promise.all([
+      this._userModel.updateOne({ _id: checkRequest.createdBy }, { $push: { friends: checkRequest.sendTo } }),
+      this._userModel.updateOne({ _id: checkRequest.sendTo }, { $push: { friends: checkRequest.createdBy } })
+    ])
+
+
+
+
+
+
+
+    return res.status(200).json({ message: "success" });
+  };
+
+  deleteFriendRequest = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { requestId } = req.params;
+
+      const friendRequest = await this._friendRequestModel.findOne({ _id: requestId });
+      if (!friendRequest) {
+        throw new AppError("Friend request not found!", 404);
+      }
+
+      const isAuthorized =
+        friendRequest.createdBy.toString() === req.user?._id.toString() ||
+        friendRequest.sendTo.toString() === req.user?._id.toString();
+
+      if (!isAuthorized) {
+        throw new AppError("Unauthorized to delete this request!", 403);
+      }
+
+      const result = await this._friendRequestModel.deleteOne({ _id: requestId });
+
+      if (result.deletedCount === 0) {
+        throw new AppError("Failed to delete friend request!", 500);
+      }
+
+      return res.status(200).json({ message: "Friend request deleted successfully ✅" });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  blockUser = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { userId } = req.params;
+
+      if (req?.user?._id.toString() === userId) {
+        throw new AppError("You can't block yourself!", 400);
+      }
+
+      const targetUser = await this._userModel.findOne({ _id: userId });
+      if (!targetUser) {
+        throw new AppError("User not found!", 404);
+      }
+
+      const currentUser = await this._userModel.findOne({
+        _id: req.user?._id,
+        blockedUsers: userId,
+      });
+      if (currentUser) {
+        throw new AppError("User already blocked!", 400);
+      }
+
+      await this._userModel.updateOne(
+        { _id: req.user?._id },
+        { $addToSet: { blockedUsers: userId } }
+      );
+
+      await this._friendRequestModel.deleteMany({
+        $or: [
+          { createdBy: req.user?._id, sendTo: userId },
+          { createdBy: userId, sendTo: req.user?._id },
+        ],
+      });
+
+      await this._userModel.updateOne(
+        { _id: req.user?._id },
+        { $pull: { friends: userId } }
+      );
+      await this._userModel.updateOne(
+        { _id: userId },
+        { $pull: { friends: req.user?._id } }
+      );
+
+      return res.status(200).json({ message: "User blocked successfully ✅" });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  unblockUser = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { userId } = req.params;
+
+      if (req?.user?._id.toString() === userId) {
+        throw new AppError("You can't unblock yourself!", 400);
+      }
+
+      const result = await this._userModel.updateOne(
+        { _id: req.user?._id },
+        { $pull: { blockedUsers: userId } }
+      );
+
+      if (result.modifiedCount === 0) {
+        throw new AppError("User not found in blocked list!", 404);
+      }
+
+      return res.status(200).json({ message: "User unblocked successfully ✅" });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  unFriend = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { userId } = req.params;
+
+      if (req?.user?._id.toString() === userId?.toString()) {
+        throw new AppError("You cannot unfriend yourself", 400);
+      }
+
+      const [currentUser, targetUser] = await Promise.all([
+        this._userModel.findOne({ _id: req?.user?._id }),
+        this._userModel.findOne({ _id: userId }),
+      ]);
+
+      if (!currentUser) throw new AppError("Your account not found", 404);
+      if (!targetUser) throw new AppError("User not found", 404);
+
+      const currentFriends = Array.isArray(currentUser.friends)
+        ? currentUser.friends
+        : currentUser.friends
+          ? [currentUser.friends]
+          : [];
+
+      const targetFriends = Array.isArray(targetUser.friends)
+        ? targetUser.friends
+        : targetUser.friends
+          ? [targetUser.friends]
+          : [];
+
+      const currentFriendIds = currentFriends.map((f: any) =>
+        f?._id?.toString?.() || f?.toString?.()
+      );
+
+      const targetFriendIds = targetFriends.map((f: any) =>
+        f?._id?.toString?.() || f?.toString?.()
+      );
+
+      const areFriends =
+        currentFriendIds.includes(userId?.toString()) ||
+        targetFriendIds.includes(req?.user?._id.toString());
+
+      if (!areFriends) {
+        throw new AppError("You are not friends with this user", 400);
+      }
+
+      await Promise.all([
+        this._userModel.updateOne(
+          { _id: req?.user?._id },
+          { $pull: { friends: userId } }
+        ),
+        this._userModel.updateOne(
+          { _id: userId },
+          { $pull: { friends: req?.user?._id } }
+        ),
+      ]);
+
+      return res.status(200).json({ message: "Friend removed successfully ❌" });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+
+
+
+
+
 
 
 

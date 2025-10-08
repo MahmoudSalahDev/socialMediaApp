@@ -22,6 +22,7 @@ exports.postSchema = new mongoose_1.Schema({
     likes: [{ type: mongoose_1.Schema.Types.ObjectId, ref: "User" }],
     allowComment: { type: String, enum: allowCommentEnum, default: allowCommentEnum.allow },
     availability: { type: String, enum: availabilityEnum, default: availabilityEnum.public },
+    changeCredentials: { type: Date },
     deletedAt: { type: Date },
     deletedBy: { type: mongoose_1.Schema.Types.ObjectId, ref: "User" },
     restoredAt: { type: Date },
@@ -46,6 +47,11 @@ exports.postSchema.pre(["findOne", "find"], function (next) {
         this.setQuery({ ...rest, deletedAt: { $exists: false } });
     }
     next();
+});
+exports.postSchema.virtual("comments", {
+    ref: "Comment",
+    localField: "_id",
+    foreignField: "postId"
 });
 const postModel = mongoose_1.models.Post || (0, mongoose_1.model)("Post", exports.postSchema);
 exports.default = postModel;

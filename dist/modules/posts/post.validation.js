@@ -3,9 +3,10 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.likePostSchema = exports.updatePostSchema = exports.createPostSchema = exports.ActionEnum = void 0;
+exports.unfreezePostSchema = exports.hardDeleteSchema = exports.freezePostSchema = exports.likePostSchema = exports.updatePostSchema = exports.createPostSchema = exports.ActionEnum = void 0;
 const zod_1 = __importDefault(require("zod"));
 const post_model_1 = require("../../DB/model/post.model");
+const mongoose_1 = require("mongoose");
 const generalRules_1 = require("../../utils/generalRules");
 var ActionEnum;
 (function (ActionEnum) {
@@ -55,4 +56,34 @@ exports.likePostSchema = {
     query: zod_1.default.strictObject({
         action: zod_1.default.enum(ActionEnum).default(ActionEnum.like)
     }),
+};
+exports.freezePostSchema = {
+    params: zod_1.default.strictObject({
+        postId: zod_1.default.string().optional(),
+    }).required().refine((value) => {
+        return value?.postId ? mongoose_1.Types.ObjectId.isValid(value.postId) : true;
+    }, {
+        message: "postId is required",
+        path: ["postId"]
+    })
+};
+exports.hardDeleteSchema = {
+    params: zod_1.default.strictObject({
+        postId: zod_1.default.string().optional(),
+    }).required().refine((value) => {
+        return value?.postId ? mongoose_1.Types.ObjectId.isValid(value.postId) : true;
+    }, {
+        message: "postId is required",
+        path: ["postId"]
+    })
+};
+exports.unfreezePostSchema = {
+    params: zod_1.default.strictObject({
+        postId: zod_1.default.string(),
+    }).required().refine((value) => {
+        return value?.postId ? mongoose_1.Types.ObjectId.isValid(value.postId) : true;
+    }, {
+        message: "postId is required",
+        path: ["postId"]
+    })
 };

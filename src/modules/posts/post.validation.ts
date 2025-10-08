@@ -1,6 +1,6 @@
 import z from "zod"
 import { allowCommentEnum, availabilityEnum } from "../../DB/model/post.model"
-import mongoose from "mongoose";
+import mongoose, { Types } from "mongoose";
 import { generalRules } from "../../utils/generalRules";
 
 
@@ -58,6 +58,41 @@ export const likePostSchema = {
     query: z.strictObject({
         action: z.enum(ActionEnum).default(ActionEnum.like)
     }),
+}
+
+export const freezePostSchema = {
+    params: z.strictObject({
+        postId: z.string().optional(),
+    }).required().refine((value) => {
+        return value?.postId ? Types.ObjectId.isValid(value.postId) : true
+    }, {
+        message: "postId is required",
+        path: ["postId"]
+    })
+}
+
+export const hardDeleteSchema = {
+    params: z.strictObject({
+        postId: z.string().optional(),
+    }).required().refine((value) => {
+        return value?.postId ? Types.ObjectId.isValid(value.postId) : true
+    }, {
+        message: "postId is required",
+        path: ["postId"]
+    })
+}
+
+
+
+export const unfreezePostSchema = {
+    params: z.strictObject({
+        postId: z.string(),
+    }).required().refine((value) => {
+        return value?.postId ? Types.ObjectId.isValid(value.postId) : true
+    }, {
+        message: "postId is required",
+        path: ["postId"]
+    })
 }
 
 

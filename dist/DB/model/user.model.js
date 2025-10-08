@@ -44,6 +44,7 @@ var RoleType;
 (function (RoleType) {
     RoleType["user"] = "user";
     RoleType["admin"] = "admin";
+    RoleType["superAdmin"] = "superAdmin";
 })(RoleType || (exports.RoleType = RoleType = {}));
 var ProviderType;
 (function (ProviderType) {
@@ -84,6 +85,7 @@ const userSchema = new mongoose_1.default.Schema({
     restoredBy: { type: mongoose_1.Types.ObjectId, ref: "User" },
     friends: { type: mongoose_1.Types.ObjectId, ref: "User" },
     is2FAEnabled: { type: Boolean, default: false },
+    blockedUsers: { type: mongoose_1.Types.ObjectId, ref: "User" },
     tempOtp: { type: String },
     otpExpiry: { type: Date },
 }, {

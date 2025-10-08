@@ -12,17 +12,54 @@ export abstract class DbRepository<TDocument> {
 
     async findOne(
         filter: RootFilterQuery<TDocument>,
-        select?: ProjectionType<TDocument>
+        select?: ProjectionType<TDocument>,
+        options?: QueryOptions<TDocument>
     ): Promise<HydratedDocument<TDocument> | null> {
-        return this.model.findOne(filter, select)
+        return this.model.findOne(filter, select,options)
     }
 
     async find(
-        filter: RootFilterQuery<TDocument>,
-        select?: ProjectionType<TDocument>,
-        options?: QueryOptions<TDocument>
+        {
+            filter,
+            select,
+            options,
+        }: {
+            filter: RootFilterQuery<TDocument>,
+            select?: ProjectionType<TDocument>,
+            options?: QueryOptions<TDocument>
+        }
     ): Promise<HydratedDocument<TDocument>[]> {
         return this.model.find(filter, select, options)
+    }
+
+    async paginate(
+        {
+            filter,
+            select,
+            options,
+            query,
+        }: {
+            filter: RootFilterQuery<TDocument>,
+            select?: ProjectionType<TDocument>,
+            options?: QueryOptions<TDocument>,
+            query: { page: number, limit: number }
+        }
+    ) {
+        let { page, limit } = query
+        if (page < 0) { page = 1 }
+        page = page * 1 || 1
+        const skip = (page - 1) * limit
+
+        const finalOptions = {
+            ...options,
+            skip,
+            limit
+        }
+
+        const count = await this.model.countDocuments({deletedAt:{$exists:false}})
+        const numberOfPages = Math.ceil(count/limit)
+        const docs = await this.model.find(filter, select, finalOptions)
+        return {docs , currentPage: page , count,numberOfPages}
     }
 
     async updateOne(filter: RootFilterQuery<TDocument>, update: UpdateQuery<TDocument>): Promise<UpdateWriteOpResult> {
@@ -41,7 +78,9 @@ export abstract class DbRepository<TDocument> {
         return await this.model.deleteOne(filter)
     }
 
-
+    async deleteMany(filter: RootFilterQuery<TDocument>): Promise<DeleteResult> {
+    return await this.model.deleteMany(filter);
+}
 
 
 }

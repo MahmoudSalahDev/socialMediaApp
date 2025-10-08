@@ -4,59 +4,75 @@
 
 ## 🚀 Features
 
-### 👤 User Management
+👤 User Management
 
-* **Signup & Verification**
-  * Register new users with email confirmation.
+Signup & Verification
 
-* **Authentication**
-  * Login with email/password.
+Register new users with email confirmation.
 
-* **Two-Factor Authentication (2FA)**
-  * **Enable 2FA (apply 2FA)** – Request to enable 2FA, an OTP will be sent to user’s email.  
-    `POST /enable-2fa`
-  * **Confirm 2FA** – Confirm the OTP to finalize enabling 2FA.  
-    `POST /confirm-2fa`
+Authentication
 
-* **User Profile**
-  * Get User Profile information.
-  * Update basic information.  
-    `PATCH /updateProfile`
-  * Update email.  
-    `PATCH /updateEmail`
+Log in and log out securely with JWT.
 
-* **Email Confirmation**
-  * Confirm email address with OTP.
+Profile Management
 
-* **Logout**
-  * Log out from current device or all devices.  
-    `POST /logout`
+View user profile information.
 
-* **Token Management**
-  * Refresh Token endpoint to get new access & refresh tokens.  
-    `GET /refreshToken`
+Update basic user info and email.
 
-* **Password Management**
-  * Forget Password (request password reset).  
-    `PATCH /forgetPassword`
-  * Reset Password (set a new password).  
-    `PATCH /resetPassword`
-  * Update password.  
-    `PATCH /updatePassword`
+Upload or change profile image.
 
-* **Account Management**
-  * Freeze account.  
-    `DELETE /freeze/:userId`
-  * Unfreeze account.  
-    `PATCH /unfreeze/:userId`
+Account Security
 
----
+Refresh token system.
 
-### 📂 File Management
-* **Upload Image**  
-  * Upload image files to AWS S3 storage.  
-  `POST /upload`
+Forgot/Reset password functionality.
 
+Two-Factor Authentication (2FA).
+
+Freeze and unfreeze and delete account.
+
+User Roles & Dashboard
+
+Access user dashboard.
+
+Update user roles.
+
+Social Features
+
+Add, accept, delete, or unfriend users.
+
+Block and unblock users.
+
+📝 Posts Management
+
+Create & Manage Posts
+
+Create, update, and delete posts.
+
+Freeze or unfreeze posts.
+
+Like and dislike posts.
+
+Post Retrieval
+
+Get all posts.
+
+Get post by ID.
+
+💬 Comments System
+
+Comments & Replies
+
+Create comments and replies.
+
+Update, freeze, unfreeze, or delete comments.
+
+Comment Retrieval
+
+Get comment by ID.
+
+Get comment with replies.
 ---
 
 ## 🛠 Tech Stack
@@ -67,6 +83,14 @@
 - bcrypt – password hashing  
 - jsonwebtoken – token-based authentication  
 - express-rate-limit – request rate limiting  
+- helmet – secure HTTP headers
+
+
+**File Upload & Storage:**  
+- multer – handling file uploads
+- AWS S3 via @aws-sdk/client-s3 for cloud storage  
+
+
 
 **Utilities & Tools:**  
 - nodemailer – email service  

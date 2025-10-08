@@ -8,7 +8,8 @@ export enum GenderType {
 
 export enum RoleType {
     user = "user",
-    admin = "admin"
+    admin = "admin",
+    superAdmin = "superAdmin",
 }
 
 export enum ProviderType {
@@ -42,6 +43,7 @@ export interface IUser {
     restoredAt?: Date,
     restoredBy?: Types.ObjectId,
     friends?: Types.ObjectId[],
+    blockedUsers?: Types.ObjectId[],
     is2FAEnabled?: boolean,
     tempOtp?: string | undefined,
     otpExpiry?: Date | undefined,
@@ -83,6 +85,7 @@ const userSchema = new mongoose.Schema<IUser>({
     restoredBy: { type: Types.ObjectId, ref: "User" },
     friends: { type: Types.ObjectId, ref: "User" },
     is2FAEnabled: { type: Boolean, default: false },
+    blockedUsers: { type: Types.ObjectId, ref: "User" },
     tempOtp: { type: String },
     otpExpiry: { type: Date },
 }, {

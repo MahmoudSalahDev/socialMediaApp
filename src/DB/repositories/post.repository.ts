@@ -5,7 +5,7 @@ import { IPost } from "../model/post.model";
 
 
 export class PostRepository extends DbRepository<IPost>{
-    constructor(protected readonly model:Model<IPost>){
+    constructor(protected override model:Model<IPost>){
         super(model)
     }
 

@@ -1,21 +1,21 @@
 import { resolve } from "path"
 import { config } from 'dotenv'
 config({ path: resolve("./config/.env") })
-import express, { NextFunction, Request, Response } from 'express'
+import express, { Request, Response } from 'express'
 import cors from 'cors'
 import helmet from 'helmet'
 import { rateLimit } from 'express-rate-limit'
-import { error } from "console"
 import { AppError } from "./utils/classError"
 import userRouter from "./modules/users/user.controller"
 import { connectionDB } from "./DB/connectionDB"
-import { UserRepository } from "./DB/repositories/user.repository"
-import userModel from "./DB/model/user.model"
-import { createGetFilePreSignedUrl, deleteFile, deleteFiles, getFile, listFiles } from "./utils/s3.config"
 import { pipeline } from "node:stream"
 import { promisify } from "node:util"
-import { ListObjectsV2CommandOutput } from "@aws-sdk/client-s3"
 import postRouter from "./modules/posts/post.controller"
+import { Server, Socket } from "socket.io"
+import { decodedTokenAndFetchUser, GetSignature, TokenType } from "./utils/token"
+import { HydratedDocument } from "mongoose"
+import { IUser } from "./DB/model/user.model"
+import { JwtPayload } from "jsonwebtoken"
 
 const writePipeLine = promisify(pipeline)
 const app: express.Application = express()
@@ -31,6 +31,14 @@ const limiter = rateLimit({
     statusCode: 429,
     legacyHeaders: false
 })
+
+
+const connectionSockets = new Map<string, string[]>()
+
+export interface SocketWithUser extends Socket {
+    user?: Partial<HydratedDocument<IUser>>,
+    decoded?: JwtPayload
+}
 
 const bootstrap = async () => {
     app.use(express.json())
@@ -120,6 +128,7 @@ const bootstrap = async () => {
 
     app.use("/users", userRouter)
     app.use("/posts", postRouter)
+    // app.use("/comments", commentRouter)
 
 
 
@@ -138,7 +147,68 @@ const bootstrap = async () => {
     })
 
 
-    app.listen(port, () => console.log(`Example app listening on port ${port}!`))
+    const server = app.listen(port, () => console.log(`Example app listening on port ${port}!`))
+
+    const io = new Server(server, {
+        cors: {
+            origin: "*"
+        }
+    })
+
+    io.use(async (socket: SocketWithUser, next) => {
+
+        try {
+
+            console.log("socket connected");
+
+
+
+            const { authorization } = socket.handshake.auth
+            const [prefix, token] = authorization?.split(" ") || []
+            if (!prefix || !token) {
+                return next(new AppError("Token not exist!", 404))
+            }
+            const signature = await GetSignature(TokenType.access, prefix)
+            if (!signature) {
+                return next(new AppError("InValid signature", 400));
+            }
+            const { user, decoded } = await decodedTokenAndFetchUser(token, signature)
+
+            const socketIds = connectionSockets.get(user?._id.toString()) || []
+            socketIds.push(socket.id)
+            // console.log(user);
+            connectionSockets.set(user._id.toString(), socketIds )
+            console.log(connectionSockets);
+
+            socket.user = user
+            socket.decoded = decoded
+
+            next()
+
+        } catch (error: any) {
+            next(error)
+        }
+
+    })
+
+    io.on("connection", (socket: SocketWithUser) => {
+        // console.log(socket.user);
+
+
+        console.log(connectionSockets.get(socket?.user?._id?.toString()!));
+
+        socket.on("disconnect", () => {
+            let remainingTabs = connectionSockets.get(socket?.user?._id?.toString()!)
+            remainingTabs?.filter((tab)=>{
+                return tab !==socket.id
+            })
+            connectionSockets.delete(socket?.user?._id?.toString()!)
+            io.emit("userDisconnected", { userId: socket?.user?._id?.toString()! })
+            console.log({ after: connectionSockets });
+        })
+    })
+
+
 }
 
 
