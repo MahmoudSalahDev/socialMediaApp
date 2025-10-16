@@ -18,12 +18,15 @@ import postModel from "../../DB/model/post.model";
 import { FriendRequestRepository } from "../../DB/repositories/friendRequest.repository";
 import friendRequestModel from "../../DB/model/friendRequest.model";
 import { Schema } from "mongoose";
+import { ChatRepository } from "../../DB/repositories/chat.repository";
+import ChatModel from "../../DB/model/chat.model";
 
 
 class UserService {
   private _userModel = new UserRepository(userModel);
   private _revokeToken = new RevokeTokenRepository(RevokeTokenModel);
   private _postModel = new PostRepository(postModel);
+  private _chatModel = new ChatRepository(ChatModel);
   private _friendRequestModel = new FriendRequestRepository(friendRequestModel);
 
   constructor() { }
@@ -142,9 +145,21 @@ class UserService {
   //=============get profile============
   getProfile = async (req: Request, res: Response, next: NextFunction) => {
 
+    const user = await this._userModel.findOne({_id:req?.user?._id},undefined,{
+      populate:[{
+        path:'friends'
+      }]
+    })
+
+    const groups = await this._chatModel.find({
+      filter:{
+        participants:{$in:[req?.user?._id]},
+        group:{$exists:true}
+      }
+    })
 
 
-    return res.status(200).json({ message: "Success", user: req?.user });
+    return res.status(200).json({ message: "Success", user , groups });
   };
 
 

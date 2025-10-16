@@ -16,8 +16,9 @@ const connectionDB_1 = require("./DB/connectionDB");
 const node_stream_1 = require("node:stream");
 const node_util_1 = require("node:util");
 const post_controller_1 = __importDefault(require("./modules/posts/post.controller"));
-const socket_io_1 = require("socket.io");
-const token_1 = require("./utils/token");
+const gateway_1 = require("./modules/geteway/gateway");
+const s3_config_1 = require("./utils/s3.config");
+const chat_controller_1 = __importDefault(require("./modules/chat/chat.controller"));
 const writePipeLine = (0, node_util_1.promisify)(node_stream_1.pipeline);
 const app = (0, express_1.default)();
 const port = process.env.PORT || 5000;
@@ -30,7 +31,6 @@ const limiter = (0, express_rate_limit_1.rateLimit)({
     statusCode: 429,
     legacyHeaders: false
 });
-const connectionSockets = new Map();
 const bootstrap = async () => {
     app.use(express_1.default.json());
     app.use((0, cors_1.default)());
@@ -39,6 +39,22 @@ const bootstrap = async () => {
     app.get('/', (req, res) => res.status(200).json({ message: 'Hello World!' }));
     app.use("/users", user_controller_1.default);
     app.use("/posts", post_controller_1.default);
+    app.use("/chat", chat_controller_1.default);
+    app.get("/upload/*path", async (req, res, next) => {
+        const { path } = req.params;
+        const { downloadName } = req.query;
+        const Key = path.join("/");
+        const result = await (0, s3_config_1.getFile)({
+            Key
+        });
+        const stream = result.Body;
+        res.set("cross-origin-resource-policy", "cross-origin");
+        res.setHeader("Content-Type", result?.ContentType);
+        if (downloadName) {
+            res.setHeader("Content-Disposition", `attachment; filename="${downloadName || Key.split("/").pop()}"`);
+        }
+        await writePipeLine(stream, res);
+    });
     await (0, connectionDB_1.connectionDB)();
     app.use("{/*demo}", (req, res) => {
         throw new classError_1.AppError(`Invalid URL ${req.originalUrl}`, 404);
@@ -49,47 +65,6 @@ const bootstrap = async () => {
             .json({ message: err.message, stack: err.stack });
     });
     const server = app.listen(port, () => console.log(`Example app listening on port ${port}!`));
-    const io = new socket_io_1.Server(server, {
-        cors: {
-            origin: "*"
-        }
-    });
-    io.use(async (socket, next) => {
-        try {
-            console.log("socket connected");
-            const { authorization } = socket.handshake.auth;
-            const [prefix, token] = authorization?.split(" ") || [];
-            if (!prefix || !token) {
-                return next(new classError_1.AppError("Token not exist!", 404));
-            }
-            const signature = await (0, token_1.GetSignature)(token_1.TokenType.access, prefix);
-            if (!signature) {
-                return next(new classError_1.AppError("InValid signature", 400));
-            }
-            const { user, decoded } = await (0, token_1.decodedTokenAndFetchUser)(token, signature);
-            const socketIds = connectionSockets.get(user?._id.toString()) || [];
-            socketIds.push(socket.id);
-            connectionSockets.set(user._id.toString(), socketIds);
-            console.log(connectionSockets);
-            socket.user = user;
-            socket.decoded = decoded;
-            next();
-        }
-        catch (error) {
-            next(error);
-        }
-    });
-    io.on("connection", (socket) => {
-        console.log(connectionSockets.get(socket?.user?._id?.toString()));
-        socket.on("disconnect", () => {
-            let remainingTabs = connectionSockets.get(socket?.user?._id?.toString());
-            remainingTabs?.filter((tab) => {
-                return tab !== socket.id;
-            });
-            connectionSockets.delete(socket?.user?._id?.toString());
-            io.emit("userDisconnected", { userId: socket?.user?._id?.toString() });
-            console.log({ after: connectionSockets });
-        });
-    });
+    (0, gateway_1.initializationIo)(server);
 };
 exports.default = bootstrap;

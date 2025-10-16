@@ -44,6 +44,10 @@ Add, accept, delete, or unfriend users.
 
 Block and unblock users.
 
+Get firends chat
+
+Get Group Chat
+
 📝 Posts Management
 
 Create & Manage Posts

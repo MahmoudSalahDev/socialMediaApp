@@ -53,10 +53,13 @@ const post_repository_1 = require("../../DB/repositories/post.repository");
 const post_model_1 = __importDefault(require("../../DB/model/post.model"));
 const friendRequest_repository_1 = require("../../DB/repositories/friendRequest.repository");
 const friendRequest_model_1 = __importDefault(require("../../DB/model/friendRequest.model"));
+const chat_repository_1 = require("../../DB/repositories/chat.repository");
+const chat_model_1 = __importDefault(require("../../DB/model/chat.model"));
 class UserService {
     _userModel = new user_repository_1.UserRepository(user_model_1.default);
     _revokeToken = new revokeToken_repository_1.RevokeTokenRepository(revokeToken_1.default);
     _postModel = new post_repository_1.PostRepository(post_model_1.default);
+    _chatModel = new chat_repository_1.ChatRepository(chat_model_1.default);
     _friendRequestModel = new friendRequest_repository_1.FriendRequestRepository(friendRequest_model_1.default);
     constructor() { }
     signUp = async (req, res, next) => {
@@ -136,7 +139,18 @@ class UserService {
             .json({ message: "User logged in successfully", access_token, refresh_token });
     };
     getProfile = async (req, res, next) => {
-        return res.status(200).json({ message: "Success", user: req?.user });
+        const user = await this._userModel.findOne({ _id: req?.user?._id }, undefined, {
+            populate: [{
+                    path: 'friends'
+                }]
+        });
+        const groups = await this._chatModel.find({
+            filter: {
+                participants: { $in: [req?.user?._id] },
+                group: { $exists: true }
+            }
+        });
+        return res.status(200).json({ message: "Success", user, groups });
     };
     logOut = async (req, res, next) => {
         try {
