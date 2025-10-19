@@ -12,6 +12,8 @@ import { ActionEnum, likePostDto, likePostQueryDto } from "./post.validation";
 import { UpdateQuery } from "mongoose";
 import { CommentRepository } from "../../DB/repositories/comment.repository";
 import commentModel from "../../DB/model/comment.model";
+import { AuthenticationGraphQL } from "../../middleware/authentication";
+import { GraphQLError } from "graphql";
 
 
 class PostService {
@@ -187,43 +189,43 @@ class PostService {
   };
 
   //=============getPostById ============
-getPostById  = async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const { postId } = req.params;
+  getPostById = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { postId } = req.params;
 
-    const post = await this._postModel.findOne({
-      _id: postId,
-      deletedAt: { $exists: false }  
-    },
-    undefined,
-    {
-      populate: [
+      const post = await this._postModel.findOne({
+        _id: postId,
+        deletedAt: { $exists: false }
+      },
+        undefined,
         {
-          path: "comments",
-          match: { refId: postId, onModel: "Post", commentId: { $exists: false } },
-          populate: {
-            path: "replies",
-            match: { onModel: "Comment" },
-          },
-        },
-        {
-          path: "createdBy",
-        }
-      ],
-    });
+          populate: [
+            {
+              path: "comments",
+              match: { refId: postId, onModel: "Post", commentId: { $exists: false } },
+              populate: {
+                path: "replies",
+                match: { onModel: "Comment" },
+              },
+            },
+            {
+              path: "createdBy",
+            }
+          ],
+        });
 
-    if (!post) {
-      throw new AppError("Post not found", 404);
+      if (!post) {
+        throw new AppError("Post not found", 404);
+      }
+
+      return res.status(200).json({
+        message: "Post fetched successfully ✅",
+        post,
+      });
+    } catch (error) {
+      next(error);
     }
-
-    return res.status(200).json({
-      message: "Post fetched successfully ✅",
-      post,
-    });
-  } catch (error) {
-    next(error);
-  }
-};
+  };
 
 
   freezePost = async (req: Request, res: Response, next: NextFunction) => {
@@ -340,9 +342,71 @@ getPostById  = async (req: Request, res: Response, next: NextFunction) => {
   };
 
 
-  
+
+  //=========================Graph QL===========
+
+  getAllPostsGQL = async (parent: any, args: any) => {
+
+    const posts = await this._postModel.find({
+      filter: {}
+    })
+    return posts
+  }
 
 
+  likePostGQL = async (parent: any, args: { postId: string; action: ActionEnum }, context: any) => {
+    try {
+
+      const { user } = await AuthenticationGraphQL(context.req.headers.authorization);
+
+      if (!user?._id) {
+        throw new GraphQLError("Unauthorized", {
+          extensions: { statusCode: 401, message: "Unauthorized" },
+        });
+      }
+
+      const { postId, action } = args;
+
+
+      let updateQuery: UpdateQuery<IPost> = { $addToSet: { likes: user._id } };
+      if (action === ActionEnum.dislike) {
+        updateQuery = { $pull: { likes: user._id } };
+      }
+
+
+      const post = await this._postModel.findOneAndUpdate(
+        {
+          _id: postId,
+          $or: [
+            { availability: availabilityEnum.public },
+            { availability: availabilityEnum.private, createdBy: user._id },
+            {
+              availability: availabilityEnum.friends,
+              createdBy: {
+                $in: [...(Array.isArray(user.friends) ? user.friends : []), user._id],
+              },
+            },
+          ],
+        },
+        updateQuery,
+        { new: true }
+      );
+
+
+      if (!post) {
+        throw new GraphQLError("Failed to like post", {
+          extensions: { statusCode: 404, message: "Post not found or access denied" },
+        });
+      }
+
+
+      return post;
+    } catch (err) {
+      throw new GraphQLError(err.message || "Something went wrong", {
+        extensions: { statusCode: 500 },
+      });
+    }
+  };
 
 
 

@@ -53,8 +53,11 @@ const post_repository_1 = require("../../DB/repositories/post.repository");
 const post_model_1 = __importDefault(require("../../DB/model/post.model"));
 const friendRequest_repository_1 = require("../../DB/repositories/friendRequest.repository");
 const friendRequest_model_1 = __importDefault(require("../../DB/model/friendRequest.model"));
+const mongoose_1 = require("mongoose");
 const chat_repository_1 = require("../../DB/repositories/chat.repository");
 const chat_model_1 = __importDefault(require("../../DB/model/chat.model"));
+const graphql_1 = require("graphql");
+const validation_1 = require("../../middleware/validation");
 class UserService {
     _userModel = new user_repository_1.UserRepository(user_model_1.default);
     _revokeToken = new revokeToken_repository_1.RevokeTokenRepository(revokeToken_1.default);
@@ -601,6 +604,37 @@ class UserService {
         catch (error) {
             next(error);
         }
+    };
+    getOneUser = async (parent, args, context) => {
+        await (0, validation_1.ValidationGraphQL)(user_validation_1.getOneUserSchema, args);
+        const foundUser = await this._userModel.findOne({ _id: mongoose_1.Types.ObjectId.createFromHexString(args.id) });
+        if (!foundUser) {
+            throw new graphql_1.GraphQLError("user not found!!", {
+                extensions: {
+                    message: "user not found!!",
+                    statusCode: 404
+                }
+            });
+        }
+        return foundUser;
+    };
+    getAllUser = async () => {
+        return this._userModel.find({ filter: {} });
+    };
+    createUser = async (parent, args) => {
+        const { fName, lName, email, password, gender, age } = args;
+        const user = await this._userModel.findOne({ email });
+        if (user) {
+            throw new graphql_1.GraphQLError("user already exists!!", {
+                extensions: {
+                    message: "user already exists!!",
+                    statusCode: 400
+                }
+            });
+        }
+        const hash = await (0, hash_1.Hash)(password);
+        const newUser = await this._userModel.create({ fName, lName, email, password: hash, gender, age });
+        return newUser;
     };
 }
 exports.default = new UserService();

@@ -1,11 +1,16 @@
 import z from "zod"
 import { GenderType } from "../../DB/model/user.model";
 import { Types } from "mongoose";
+import { generalRules } from "../../utils/generalRules";
 
 export enum FlagType {
     all = "all",
     current = "current",
 }
+
+export const getOneUserSchema = z.strictObject({
+    id: generalRules.id
+}).required()
 
 const passRegex = /^(?=.*?[A-Z])(?=.*?[a-z])(?=.*?[0-9])(?=.*?[#?!@$ %^&*-]).{8,}$/
 

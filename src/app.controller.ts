@@ -14,6 +14,9 @@ import postRouter from "./modules/posts/post.controller"
 import { initializationIo } from "./modules/geteway/gateway"
 import { getFile } from "./utils/s3.config"
 import chatRouter from "./modules/chat/chat.controller"
+import { createHandler } from 'graphql-http/lib/use/express';
+import { schemaGQL } from "./modules/graphql/schema.gql"
+import { Authentication } from "./middleware/authentication"
 
 const writePipeLine = promisify(pipeline)
 const app: express.Application = express()
@@ -37,6 +40,14 @@ const bootstrap = async () => {
     app.use(cors())
     app.use(helmet())
     app.use(limiter)
+
+    const users = [
+        {id:1 , name:"ahmed"}
+    ]
+
+
+  
+    app.all('/graphql',createHandler({ schema:schemaGQL , context:(req)=>({req})}));
 
 
 

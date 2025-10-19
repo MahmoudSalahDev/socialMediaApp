@@ -1,6 +1,7 @@
 import { NextFunction, Request, Response } from "express"
 import { ZodType } from "zod"
 import { AppError } from "../utils/classError"
+import { GraphQLError } from "graphql"
 
 
 type ReqType = keyof Request
@@ -17,12 +18,12 @@ export const Validation = (schema: SchemaType) => {
         for (const key of Object.keys(schema) as ReqType[]) {
 
 
-            if(!schema[key]) continue
+            if (!schema[key]) continue
 
-            if(req?.file){
+            if (req?.file) {
                 req.body.attachments = req.file
             }
-            if(req?.files){                
+            if (req?.files) {
                 req.body.attachments = req.files
             }
 
@@ -32,10 +33,28 @@ export const Validation = (schema: SchemaType) => {
                 ValidationErrors.push(result.error)
             }
         }
-        if(ValidationErrors.length){
-                            throw new AppError(JSON.parse(ValidationErrors as unknown as string),400)
+        if (ValidationErrors.length) {
+            throw new AppError(JSON.parse(ValidationErrors as unknown as string), 400)
         }
 
         next()
     }
 }
+
+export const ValidationGraphQL = async <T>(schema: ZodType, args: T) => {
+    const ValidationErrors = []
+    const result = schema.safeParse(args)
+    if (!result.success) {
+        ValidationErrors.push(result.error)
+    }
+    if (ValidationErrors.length) {
+        throw new GraphQLError("validation errors", {
+            extensions: {
+                code: "validation errors",
+                http: { status: 400 },
+                errors: JSON.parse(ValidationErrors as unknown as string)
+            }
+        });
+    }
+}
+

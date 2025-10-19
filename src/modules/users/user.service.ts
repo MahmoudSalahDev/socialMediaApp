@@ -1,6 +1,6 @@
 import { NextFunction, Request, Response } from "express";
 import userModel, { ProviderType, RoleType } from "../../DB/model/user.model";
-import { confirmEmailSchemaType, FlagType, forgetPasswordSchemaType, freezeAccountSchemaType, loginWithGmailSchemaType, logOutSchemaType, resetPasswordSchemaType, signInSchemaType, signUpSchemaType, updatePasswordSchemaType, updateProfileSchemaType } from "./user.validation";
+import { confirmEmailSchemaType, FlagType, forgetPasswordSchemaType, freezeAccountSchemaType, getOneUserSchema, loginWithGmailSchemaType, logOutSchemaType, resetPasswordSchemaType, signInSchemaType, signUpSchemaType, updatePasswordSchemaType, updateProfileSchemaType } from "./user.validation";
 import { UserRepository } from "../../DB/repositories/user.repository";
 import { AppError } from "../../utils/classError";
 import { Compare, Hash } from "../../utils/hash";
@@ -17,9 +17,13 @@ import { PostRepository } from "../../DB/repositories/post.repository";
 import postModel from "../../DB/model/post.model";
 import { FriendRequestRepository } from "../../DB/repositories/friendRequest.repository";
 import friendRequestModel from "../../DB/model/friendRequest.model";
-import { Schema } from "mongoose";
+import { Schema, Types } from "mongoose";
 import { ChatRepository } from "../../DB/repositories/chat.repository";
 import ChatModel from "../../DB/model/chat.model";
+import { GraphQLError } from "graphql";
+import { AuthenticationGraphQL } from "../../middleware/authentication";
+import { AuthorizationGraphQL } from "../../middleware/authorization";
+import { ValidationGraphQL } from "../../middleware/validation";
 
 
 class UserService {
@@ -145,21 +149,21 @@ class UserService {
   //=============get profile============
   getProfile = async (req: Request, res: Response, next: NextFunction) => {
 
-    const user = await this._userModel.findOne({_id:req?.user?._id},undefined,{
-      populate:[{
-        path:'friends'
+    const user = await this._userModel.findOne({ _id: req?.user?._id }, undefined, {
+      populate: [{
+        path: 'friends'
       }]
     })
 
     const groups = await this._chatModel.find({
-      filter:{
-        participants:{$in:[req?.user?._id]},
-        group:{$exists:true}
+      filter: {
+        participants: { $in: [req?.user?._id] },
+        group: { $exists: true }
       }
     })
 
 
-    return res.status(200).json({ message: "Success", user , groups });
+    return res.status(200).json({ message: "Success", user, groups });
   };
 
 
@@ -816,8 +820,69 @@ class UserService {
   };
 
 
+  //=================Graph QL================
+  getOneUser = async (parent: any, args: {id:string}, context: any) => {
 
+    // const { user } = await AuthenticationGraphQL(context.req.headers.authorization)
 
+    // if (!user?.role) {
+    //   throw new GraphQLError("User role is missing", {
+    //     extensions: {
+    //       message: "User role is missing",
+    //       statusCode: 400
+    //     }
+    //   });
+    // }
+
+    // const auth = await AuthorizationGraphQL({
+    //   accessRoles: [RoleType.admin, RoleType.user],
+    //   role: user.role
+    // });
+    // if (!auth) {
+    //   throw new GraphQLError("u are not authorized", {
+    //     extensions: {
+    //       message: "u are not authorized",
+    //       statusCode: 404
+    //     }
+    //   });
+    // }
+    // const { id } = args
+
+    await ValidationGraphQL<typeof args>(getOneUserSchema, args)
+
+    const foundUser = await this._userModel.findOne({ _id: Types.ObjectId.createFromHexString(args.id) })
+    if (!foundUser) {
+      throw new GraphQLError("user not found!!", {
+        extensions: {
+          message: "user not found!!",
+          statusCode: 404
+        }
+      });
+    }
+
+    return foundUser
+
+  }
+
+  getAllUser = async () => {
+    return this._userModel.find({ filter: {} })
+  }
+
+  createUser = async (parent: any, args: any) => {
+    const { fName, lName, email, password, gender, age } = args
+    const user = await this._userModel.findOne({ email })
+    if (user) {
+      throw new GraphQLError("user already exists!!", {
+        extensions: {
+          message: "user already exists!!",
+          statusCode: 400
+        }
+      });
+    }
+    const hash = await Hash(password);
+    const newUser = await this._userModel.create({ fName, lName, email, password: hash, gender, age })
+    return newUser
+  }
 
 
 

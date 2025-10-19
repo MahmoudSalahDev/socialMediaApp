@@ -3,15 +3,19 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.updateEmailSchema = exports.updateProfileSchema = exports.updatePasswordSchema = exports.logOutSchema = exports.forgetPasswordSchema = exports.signInSchema = exports.loginWithGmailSchema = exports.resetPasswordSchema = exports.unfreezeAccountSchema = exports.freezeAccountSchema = exports.confirmEmailSchema = exports.signUpSchema = exports.FlagType = void 0;
+exports.updateEmailSchema = exports.updateProfileSchema = exports.updatePasswordSchema = exports.logOutSchema = exports.forgetPasswordSchema = exports.signInSchema = exports.loginWithGmailSchema = exports.resetPasswordSchema = exports.unfreezeAccountSchema = exports.freezeAccountSchema = exports.confirmEmailSchema = exports.signUpSchema = exports.getOneUserSchema = exports.FlagType = void 0;
 const zod_1 = __importDefault(require("zod"));
 const user_model_1 = require("../../DB/model/user.model");
 const mongoose_1 = require("mongoose");
+const generalRules_1 = require("../../utils/generalRules");
 var FlagType;
 (function (FlagType) {
     FlagType["all"] = "all";
     FlagType["current"] = "current";
 })(FlagType || (exports.FlagType = FlagType = {}));
+exports.getOneUserSchema = zod_1.default.strictObject({
+    id: generalRules_1.generalRules.id
+}).required();
 const passRegex = /^(?=.*?[A-Z])(?=.*?[a-z])(?=.*?[0-9])(?=.*?[#?!@$ %^&*-]).{8,}$/;
 exports.signUpSchema = {
     body: zod_1.default.object({

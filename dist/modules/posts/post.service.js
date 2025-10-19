@@ -46,6 +46,8 @@ const s3_config_1 = require("../../utils/s3.config");
 const post_validation_1 = require("./post.validation");
 const comment_repository_1 = require("../../DB/repositories/comment.repository");
 const comment_model_1 = __importDefault(require("../../DB/model/comment.model"));
+const authentication_1 = require("../../middleware/authentication");
+const graphql_1 = require("graphql");
 class PostService {
     _userModel = new user_repository_1.UserRepository(user_model_1.default);
     _postModel = new post_repository_1.PostRepository(post_model_1.default);
@@ -269,6 +271,51 @@ class PostService {
         }
         catch (error) {
             next(error);
+        }
+    };
+    getAllPostsGQL = async (parent, args) => {
+        const posts = await this._postModel.find({
+            filter: {}
+        });
+        return posts;
+    };
+    likePostGQL = async (parent, args, context) => {
+        try {
+            const { user } = await (0, authentication_1.AuthenticationGraphQL)(context.req.headers.authorization);
+            if (!user?._id) {
+                throw new graphql_1.GraphQLError("Unauthorized", {
+                    extensions: { statusCode: 401, message: "Unauthorized" },
+                });
+            }
+            const { postId, action } = args;
+            let updateQuery = { $addToSet: { likes: user._id } };
+            if (action === post_validation_1.ActionEnum.dislike) {
+                updateQuery = { $pull: { likes: user._id } };
+            }
+            const post = await this._postModel.findOneAndUpdate({
+                _id: postId,
+                $or: [
+                    { availability: post_model_1.availabilityEnum.public },
+                    { availability: post_model_1.availabilityEnum.private, createdBy: user._id },
+                    {
+                        availability: post_model_1.availabilityEnum.friends,
+                        createdBy: {
+                            $in: [...(Array.isArray(user.friends) ? user.friends : []), user._id],
+                        },
+                    },
+                ],
+            }, updateQuery, { new: true });
+            if (!post) {
+                throw new graphql_1.GraphQLError("Failed to like post", {
+                    extensions: { statusCode: 404, message: "Post not found or access denied" },
+                });
+            }
+            return post;
+        }
+        catch (err) {
+            throw new graphql_1.GraphQLError(err.message || "Something went wrong", {
+                extensions: { statusCode: 500 },
+            });
         }
     };
 }

@@ -19,6 +19,8 @@ const post_controller_1 = __importDefault(require("./modules/posts/post.controll
 const gateway_1 = require("./modules/geteway/gateway");
 const s3_config_1 = require("./utils/s3.config");
 const chat_controller_1 = __importDefault(require("./modules/chat/chat.controller"));
+const express_2 = require("graphql-http/lib/use/express");
+const schema_gql_1 = require("./modules/graphql/schema.gql");
 const writePipeLine = (0, node_util_1.promisify)(node_stream_1.pipeline);
 const app = (0, express_1.default)();
 const port = process.env.PORT || 5000;
@@ -36,6 +38,10 @@ const bootstrap = async () => {
     app.use((0, cors_1.default)());
     app.use((0, helmet_1.default)());
     app.use(limiter);
+    const users = [
+        { id: 1, name: "ahmed" }
+    ];
+    app.all('/graphql', (0, express_2.createHandler)({ schema: schema_gql_1.schemaGQL, context: (req) => ({ req }) }));
     app.get('/', (req, res) => res.status(200).json({ message: 'Hello World!' }));
     app.use("/users", user_controller_1.default);
     app.use("/posts", post_controller_1.default);
